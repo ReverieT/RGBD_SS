@@ -1,0 +1,49 @@
+# ==========================
+# Python & Environment
+# ==========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.env
+
+# ==========================
+# PyTorch & Deep Learning
+# ==========================
+*.pth
+*.pt
+*.ckpt
+*.pkl
+# 忽略 Tensorboard 日志
+runs/
+# 忽略 Wandb 日志
+wandb/
+
+# ==========================
+# Project Specific (核心部分)
+# ==========================
+# 忽略数据集目录 (数据通常太大，不上传)
+data/
+
+# 忽略输出目录 (日志、权重、可视化结果)
+outputs/
+
+# 忽略临时脚本或草稿
+temp/
+*.log
+
+# ==========================
+# IDE & System
+# ==========================
+# Trae IDE
+.trae/
+# VS Code
+.vscode/
+# PyCharm
+.idea/
+# Mac & Windows
+.DS_Store
+Thumbs.db
