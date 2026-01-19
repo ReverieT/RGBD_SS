@@ -1,0 +1,19 @@
+# 继承列表：按顺序加载，后加载的覆盖前面的
+_base_:
+  - "../_base_/datasets/nyu_v2.yaml"
+  - "../_base_/schedules/default_schedule.yaml"
+
+# 模型特定的配置 (Base里没有的)
+model:
+  backbone: "resnet50"
+  pretrained: True
+  decoder: "fcn"
+  decoder_channels: 512
+
+# 覆写 (Override) 部分配置
+# 比如我想在这个实验里把 Batch Size 改大一点
+loader:
+  batch_size: 8
+
+# 修改保存路径
+save_dir: "outputs/nyu_resnet50_baseline"

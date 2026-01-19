@@ -1,0 +1,13 @@
+epochs: 50
+print_freq: 10
+save_dir: "outputs/debug_run"
+
+optimizer:
+  type: "SGD"
+  lr: 0.01
+  momentum: 0.9
+  weight_decay: 0.0001
+
+scheduler:
+  type: "Poly"
+  power: 0.9
