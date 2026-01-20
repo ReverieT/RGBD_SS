@@ -70,7 +70,7 @@ class RandomScaleCrop(object):
             depth = ImageOps.expand(depth, border=(0, 0, padw, padh), fill=0) 
             # Label 补 255 (Ignore Index)
             if mask:
-                mask = ImageOps.expand(mask, border=(0, 0, padw, padh), fill=255)
+                mask = ImageOps.expand(mask, border=(0, 0, padw, padh), fill=0)
 
         # --- 3. 随机裁剪 (Crop) ---
         # ★ 关键修正：生成一次坐标，应用三次 ★
