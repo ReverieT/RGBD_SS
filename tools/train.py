@@ -167,7 +167,7 @@ def main():
     val_sampler = DistributedSampler(dataset_val, shuffle=False)
 
     train_loader = DataLoader(
-        dataset_train, batch_size=cfg.batch_size, 
+        dataset_train, batch_size=cfg.loader.batch_size, 
         sampler=train_sampler, num_workers=4, pin_memory=True, drop_last=True
     )
     val_loader = DataLoader(
@@ -179,9 +179,9 @@ def main():
     logger.info("Building model...")
     rgb_backbone = ResNet(depth=50, pretrained=True)
     depth_backbone = ResNet(depth=50, pretrained=True)
-    head = FCNHead(in_channels=2048, channels=512, num_classes=cfg.n_classes)
+    head = FCNHead(in_channels=2048, channels=512, num_classes=cfg.dataset.n_classes)
     
-    model = RGBDSegmentor(rgb_backbone, depth_backbone, head, cfg.n_classes)
+    model = RGBDSegmentor(rgb_backbone, depth_backbone, head, cfg.dataset.n_classes)
     model.to(device)
 
     # 转换 SyncBatchNorm (多卡训练必备，提升小 Batch 下的性能)
@@ -193,7 +193,7 @@ def main():
 
     # 5. Optimizer & Loss
     params = [p for p in model.parameters() if p.requires_grad]
-    optimizer = optim.SGD(params, lr=cfg.lr, momentum=0.9, weight_decay=1e-4)
+    optimizer = optim.SGD(params, lr=cfg.optimizer.lr, momentum=0.9, weight_decay=1e-4)
     
     # 简单的学习率衰减
     lr_scheduler = optim.lr_scheduler.PolynomialLR(optimizer, total_iters=cfg.epochs, power=0.9)
@@ -216,7 +216,7 @@ def main():
         
         # Val
         if epoch % 1 == 0: # 每个 epoch 都验证
-            acc = validate(model, val_loader, device, cfg.n_classes)
+            acc = validate(model, val_loader, device, cfg.dataset.n_classes)
             
             # Save Checkpoint (只在主进程)
             if dist_utils.is_main_process():
