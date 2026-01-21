@@ -1,1 +1,54 @@
+import torch
+import numpy as np
 
+class Evaluator(object):
+    def __init__(self, num_class):
+        self.num_class = num_class
+        self.confusion_matrix = np.zeros((self.num_class,)*2)
+
+    def pixel_accuracy(self):
+        # Acc = (TP + TN) / (P + N)
+        Acc = np.diag(self.confusion_matrix).sum() / self.confusion_matrix.sum()
+        return Acc
+
+    def pixel_accuracy_class(self):
+        # Acc per class
+        Acc = np.diag(self.confusion_matrix) / self.confusion_matrix.sum(axis=1)
+        # Handle division by zero
+        Acc = np.nan_to_num(Acc)
+        return np.mean(Acc)
+
+    def mean_intersection_over_union(self):
+        # IoU = TP / (TP + FP + FN)
+        MIoU = np.diag(self.confusion_matrix) / (
+            np.sum(self.confusion_matrix, axis=1) + 
+            np.sum(self.confusion_matrix, axis=0) - 
+            np.diag(self.confusion_matrix)
+        )
+        MIoU = np.nan_to_num(MIoU) # 某些类别可能不存在，导致除0
+        return np.mean(MIoU)
+
+    def frequency_weighted_intersection_over_union(self):
+        # FWIoU
+        freq = np.sum(self.confusion_matrix, axis=1) / np.sum(self.confusion_matrix)
+        iu = np.diag(self.confusion_matrix) / (
+            np.sum(self.confusion_matrix, axis=1) + 
+            np.sum(self.confusion_matrix, axis=0) - 
+            np.diag(self.confusion_matrix)
+        )
+        FWIoU = (freq[freq > 0] * iu[freq > 0]).sum()
+        return FWIoU
+
+    def _generate_matrix(self, gt_image, pre_image):
+        mask = (gt_image >= 0) & (gt_image < self.num_class)
+        label = self.num_class * gt_image[mask].astype('int') + pre_image[mask]
+        count = np.bincount(label, minlength=self.num_class**2)
+        confusion_matrix = count.reshape(self.num_class, self.num_class)
+        return confusion_matrix
+
+    def add_batch(self, gt_image, pre_image):
+        assert gt_image.shape == pre_image.shape
+        self.confusion_matrix += self._generate_matrix(gt_image, pre_image)
+
+    def reset(self):
+        self.confusion_matrix = np.zeros((self.num_class,) * 2)
