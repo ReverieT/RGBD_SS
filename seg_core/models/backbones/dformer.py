@@ -211,19 +211,31 @@ class FeedForwardNetwork(nn.Module):
     def __init__(self, embed_dim, ffn_dim, activation_fn=F.gelu, dropout=0.0, activation_dropout=0.0):
         super().__init__()
         self.fc1 = nn.Linear(embed_dim, ffn_dim)
-        self.fc2 = nn.Linear(ffn_dim, embed_dim)
-        self.dwconv = DWConv2d(ffn_dim, 3, 1, 1)
+        self.dwconv = DWConv2d(ffn_dim, 3, 1, 1) # DWConv 作用在高维(ffn_dim)上
         self.activation_fn = activation_fn
-        self.dropout_module = torch.nn.Dropout(dropout)
         self.activation_dropout_module = torch.nn.Dropout(activation_dropout)
+        self.fc2 = nn.Linear(ffn_dim, embed_dim)
+        self.dropout_module = torch.nn.Dropout(dropout)
 
     def forward(self, x):
-        residual = x
+        # x 的形状: (B, H, W, embed_dim) -> 例如 64通道
+        
+        # 1. 第一层投影 + 激活 (升维到 ffn_dim，例如 256通道)
         x = self.fc1(x)
         x = self.activation_fn(x)
         x = self.activation_dropout_module(x)
+        
+        # 2. ★关键修正★：在这里记录残差 (此时 x 是 256通道)
+        # DFormer 的设计是：在 FFN 内部的高维空间里做残差
+        residual = x
+        
+        # 3. 深度卷积
         x = self.dwconv(x)
+        
+        # 4. 相加 (256 + 256，维度匹配！)
         x = x + residual
+        
+        # 5. 第二层投影 (降维回 embed_dim，例如 64通道)
         x = self.fc2(x)
         x = self.dropout_module(x)
         return x
@@ -362,14 +374,22 @@ class dformerv2(nn.Module):
             print(f"Missing keys: {len(msg.missing_keys)}, Unexpected keys: {len(msg.unexpected_keys)}")
 
     def forward(self, x, x_e):
-        # x: RGB, x_e: Depth
+        # x: RGB [B, 3, H, W]
+        # x_e: Depth [B, 1, H, W]
         x = self.patch_embed(x)
-        # 调整 depth 维度
-        if x_e.dim() == 4 and x_e.shape[1] == 1:
-            x_e = x_e.unsqueeze(1) # [B, 1, 1, H, W] for interpolation inside Geo
-        elif x_e.dim() == 4 and x_e.shape[1] == 3:
-            # 如果输入了3通道深度，取第一通道
-            x_e = x_e[:, 0, :, :].unsqueeze(1).unsqueeze(1)
+        
+        # --- 修正后的深度图处理逻辑 ---
+        # 目标：确保 x_e 是 [B, 1, H, W] 格式
+        
+        if x_e.dim() == 3: 
+            # 如果输入是 [B, H, W]，增加一个通道维度
+            x_e = x_e.unsqueeze(1)
+        elif x_e.dim() == 4:
+            if x_e.shape[1] == 3: 
+                # 如果是 [B, 3, H, W]，取第一个通道
+                x_e = x_e[:, 0:1, :, :]
+            # 如果已经是 [B, 1, H, W]，什么都不做 (之前就是这里错了！)
+        # ---------------------------
         
         outs = []
         for i in range(self.num_layers):
@@ -381,7 +401,6 @@ class dformerv2(nn.Module):
                 out = x_out.permute(0, 3, 1, 2).contiguous()
                 outs.append(out)
         
-        # 返回列表而非 Tuple，保持与 ResNet 一致
         return list(outs)
 
 # ==========================================

@@ -208,7 +208,7 @@ def main():
 
     # 包装 DDP
     model_without_ddp = model
-    model = DDP(model, device_ids=[args.gpu], find_unused_parameters=False) # find_unused=True 仅在调试时开启
+    model = DDP(model, device_ids=[args.gpu], find_unused_parameters=True) # find_unused=True 仅在调试时开启
 
     # 5. Optimizer & Loss
     params = [p for p in model.parameters() if p.requires_grad]

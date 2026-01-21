@@ -9,7 +9,7 @@ model:
   backbone: "dformerv2_s"
   
   # ★★★ 关键：修改为你下载权重的实际绝对路径或相对路径 ★★★
-  pretrained: "checkpoints/dformer_v2_s_imagenet.pth"
+  pretrained: "checkpoints/DFormerv2_Small_pretrained.pth"
   
   # 解码头配置
   decoder: "fcn"
