@@ -8,6 +8,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 
+from seg_core.models.backbones.dformer import DFormerv2_S, DFormerv2_B, DFormerv2_L
 # 添加项目根目录到 Path
 sys.path.append(os.getcwd())
 
@@ -176,12 +177,30 @@ def main():
     )
 
     # 4. 构建模型
-    logger.info("Building model...")
-    rgb_backbone = ResNet(depth=50, pretrained=True)
-    depth_backbone = ResNet(depth=50, pretrained=True)
-    head = FCNHead(in_channels=2048, channels=512, num_classes=cfg.dataset.n_classes)
-    
-    model = RGBDSegmentor(rgb_backbone, depth_backbone, head, cfg.dataset.n_classes)
+    logger.info(f"Building model with backbone: {cfg.model.backbone}")
+
+    if 'dformer' in cfg.model.backbone:
+        # === 实例化 DFormer ===
+        if cfg.model.backbone == 'dformerv2_s':
+            backbone = DFormerv2_S(pretrained=cfg.model.pretrained)
+            dec_channels = 512
+        elif cfg.model.backbone == 'dformerv2_b':
+            backbone = DFormerv2_B(pretrained=cfg.model.pretrained)
+            dec_channels = 512
+        # ... 其他变体
+        
+        head = FCNHead(in_channels=512, channels=cfg.model.decoder_channels, num_classes=cfg.dataset.n_classes)
+        
+        # ★ 关键：只传一个 backbone，Segmentor 会自动识别 is_unified=True
+        model = RGBDSegmentor(backbone, head=head, n_classes=cfg.dataset.n_classes)
+        
+    else:
+        # === 实例化 ResNet ===
+        rgb_backbone = ResNet(depth=50, pretrained=cfg.model.pretrained)
+        depth_backbone = ResNet(depth=50, pretrained=cfg.model.pretrained)
+        head = FCNHead(in_channels=2048, channels=cfg.model.decoder_channels, num_classes=cfg.dataset.n_classes)
+        
+        model = RGBDSegmentor(rgb_backbone, depth_backbone, head, cfg.dataset.n_classes)
     model.to(device)
 
     # 转换 SyncBatchNorm (多卡训练必备，提升小 Batch 下的性能)
@@ -193,7 +212,21 @@ def main():
 
     # 5. Optimizer & Loss
     params = [p for p in model.parameters() if p.requires_grad]
-    optimizer = optim.SGD(params, lr=cfg.optimizer.lr, momentum=0.9, weight_decay=1e-4)
+    # === 新增：根据 Config 选择优化器 ===
+    if cfg.optimizer.type == 'AdamW':
+        optimizer = optim.AdamW(
+            params, 
+            lr=cfg.optimizer.lr, 
+            weight_decay=cfg.optimizer.weight_decay
+        )
+    else:
+        # 默认为 SGD
+        optimizer = optim.SGD(
+            params, 
+            lr=cfg.optimizer.lr, 
+            momentum=cfg.optimizer.momentum, 
+            weight_decay=cfg.optimizer.weight_decay
+        )
     
     # 简单的学习率衰减
     lr_scheduler = optim.lr_scheduler.PolynomialLR(optimizer, total_iters=cfg.epochs, power=0.9)

@@ -30,6 +30,7 @@ data/
 
 # 忽略输出目录 (日志、权重、可视化结果)
 outputs/
+checkpoints/
 
 # 忽略临时脚本或草稿
 temp/
