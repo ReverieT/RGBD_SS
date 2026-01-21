@@ -111,8 +111,8 @@ def validate(model, data_loader, device, n_classes):
             total_label += mask.sum().item()
 
     # 多卡汇总
-    total_correct = torch.tensor(total_correct).to(device)
-    total_label = torch.tensor(total_label).to(device)
+    total_correct = torch.tensor(total_correct).float().to(device)
+    total_label = torch.tensor(total_label).float().to(device)
     
     dist_utils.reduce_mean(total_correct, dist_utils.get_world_size())
     dist_utils.reduce_mean(total_label, dist_utils.get_world_size())
