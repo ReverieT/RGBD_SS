@@ -8,6 +8,8 @@ from torch.utils.data import DataLoader
 
 sys.path.append(os.getcwd())
 
+from seg_core.models.backbones.dformer import DFormerv2_S, DFormerv2_B, DFormerv2_L
+
 from seg_core.datasets.base_dataset import RGBXDataset
 from seg_core.datasets import transforms as T
 from seg_core.models.backbones.resnet import ResNet
@@ -33,11 +35,26 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
 
     # 2. 模型
-    rgb_backbone = ResNet(depth=50, pretrained=False)
-    depth_backbone = ResNet(depth=50, pretrained=False)
-    head = FCNHead(in_channels=2048, channels=512, num_classes=cfg.dataset.n_classes)
-    model = RGBDSegmentor(rgb_backbone, depth_backbone, head, cfg.dataset.n_classes)
-    
+    if 'dformer' in cfg.model.backbone:
+        # === 实例化 DFormer ===
+        if cfg.model.backbone == 'dformerv2_s':
+            backbone = DFormerv2_S(pretrained=cfg.model.pretrained)
+            dec_channels = 512
+        elif cfg.model.backbone == 'dformerv2_b':
+            backbone = DFormerv2_B(pretrained=cfg.model.pretrained)
+            dec_channels = 512
+        # ... 其他变体
+        head = FCNHead(in_channels=512, channels=cfg.model.decoder_channels, num_classes=cfg.dataset.n_classes)
+        # ★ 关键：只传一个 backbone，Segmentor 会自动识别 is_unified=True
+        model = RGBDSegmentor(backbone, head=head, n_classes=cfg.dataset.n_classes)
+        
+    else:
+        # === 实例化 ResNet ===
+        rgb_backbone = ResNet(depth=50, pretrained=cfg.model.pretrained)
+        depth_backbone = ResNet(depth=50, pretrained=cfg.model.pretrained)
+        head = FCNHead(in_channels=2048, channels=cfg.model.decoder_channels, num_classes=cfg.dataset.n_classes)
+        model = RGBDSegmentor(rgb_backbone, depth_backbone, head, cfg.dataset.n_classes)
+   
     # 加载权重
     print(f"Loading checkpoint...")
     checkpoint = torch.load(args.checkpoint, map_location='cpu')

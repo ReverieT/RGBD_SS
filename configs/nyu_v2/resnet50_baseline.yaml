@@ -13,7 +13,7 @@ model:
 # 覆写 (Override) 部分配置
 # 比如我想在这个实验里把 Batch Size 改大一点
 loader:
-  batch_size: 8
+  batch_size: 32
 
 # 修改保存路径
 save_dir: "outputs/nyu_resnet50_baseline"

@@ -8,6 +8,8 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 sys.path.append(os.getcwd())
 
+from seg_core.models.backbones.dformer import DFormerv2_S, DFormerv2_B, DFormerv2_L
+
 from seg_core.utils import dist_utils
 from seg_core.datasets.base_dataset import RGBXDataset
 from seg_core.datasets import transforms as T
@@ -32,12 +34,27 @@ def main():
     dist_utils.init_distributed_mode(args)
     device = torch.device(args.gpu)
 
-    # 2. 构建模型 (结构必须与训练时一致)
-    rgb_backbone = ResNet(depth=50, pretrained=False) # 测试时不需要下载预训练权重，反正要加载 checkpoint
-    depth_backbone = ResNet(depth=50, pretrained=False)
-    head = FCNHead(in_channels=2048, channels=512, num_classes=cfg.dataset.n_classes)
-    
-    model = RGBDSegmentor(rgb_backbone, depth_backbone, head, cfg.dataset.n_classes)
+    # 2. 构建模型
+    if 'dformer' in cfg.model.backbone:
+        # === 实例化 DFormer ===
+        if cfg.model.backbone == 'dformerv2_s':
+            backbone = DFormerv2_S(pretrained=cfg.model.pretrained)
+            dec_channels = 512
+        elif cfg.model.backbone == 'dformerv2_b':
+            backbone = DFormerv2_B(pretrained=cfg.model.pretrained)
+            dec_channels = 512
+        # ... 其他变体
+        head = FCNHead(in_channels=512, channels=cfg.model.decoder_channels, num_classes=cfg.dataset.n_classes)
+        # ★ 关键：只传一个 backbone，Segmentor 会自动识别 is_unified=True
+        model = RGBDSegmentor(backbone, head=head, n_classes=cfg.dataset.n_classes)
+        
+    else:
+        # === 实例化 ResNet ===
+        rgb_backbone = ResNet(depth=50, pretrained=cfg.model.pretrained)
+        depth_backbone = ResNet(depth=50, pretrained=cfg.model.pretrained)
+        head = FCNHead(in_channels=2048, channels=cfg.model.decoder_channels, num_classes=cfg.dataset.n_classes)
+        model = RGBDSegmentor(rgb_backbone, depth_backbone, head, cfg.dataset.n_classes)
+
     model.to(device)
 
     # 3. 加载权重
