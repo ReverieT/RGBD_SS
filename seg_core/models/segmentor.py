@@ -28,9 +28,14 @@ class RGBDSegmentor(nn.Module):
             # === 分支 A: 单流模型 (DFormer) ===
             # 直接同时传入 RGB 和 Depth
             features = self.backbone(img, depth)
-            
-            # DFormer 内部已经做好了交互，输出的 features 可以直接进 Head
-            logits = self.head(features)
+            # 智能判断 Head 需要什么输入
+            if hasattr(self.head, 'input_indices'):
+                # 如果是 HamHead，它定义了需要的索引 [1, 2, 3]
+                selected_features = [features[i] for i in self.head.input_indices]
+                logits = self.head(selected_features)
+            else:
+                # 默认 FCN，只取最后一个
+                logits = self.head(features[-1])
             
         else:
             # === 分支 B: 双流模型 (ResNet) ===

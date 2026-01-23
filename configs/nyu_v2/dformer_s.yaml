@@ -12,7 +12,7 @@ model:
   pretrained: "checkpoints/DFormerv2_Small_pretrained.pth"
   
   # 解码头配置
-  decoder: "fcn"
+  decoder: "ham"
   decoder_channels: 256 # 中间特征维度，256 或 512 都可以
 
 # 3. 覆写 Loader 配置

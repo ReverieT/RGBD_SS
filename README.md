@@ -15,7 +15,7 @@
 本项目的目录组织如下，采用配置与代码分离的设计模式：
 
 ```text
-RGBD-Segmentation/
+RGB-D_Semantic_Segmentation/
 ├── configs/                     # [配置中心] 存放所有 YAML 实验配置文件
 │   ├── _base_/                  # 基础配置 (数据集路径、默认数据增强、Runtime参数)
 │   ├── nyu_v2/                  # 针对 NYUDepthv2 的实验配置 (如: deeplabv3_resnet50.yaml)
@@ -33,7 +33,8 @@ RGBD-Segmentation/
 │
 ├── scripts/                     # [Shell 脚本] 快捷启动脚本
 │   ├── train_dist.sh            # 启动分布式训练 (使用 torchrun)
-│   └── test.sh                  # 启动测试/评估
+│   ├── test_dist.sh             # 启动测试/评估 (分布式)
+│   └── inference.sh             # 推理示例
 │
 ├── seg_core/                    # [核心代码库] 
 │   ├── datasets/                # 数据集与数据加载
@@ -47,6 +48,7 @@ RGBD-Segmentation/
 │   │   ├── backbones/           # 骨干网络 (ResNet, Swin, MixTransformer 等)
 │   │   ├── decoders/            # 分割解码头 (ASPP, MLP Decoder 等)
 │   │   ├── fusion/              # ★ RGB-D 融合模块 (Add, Concat, Attention, SE-Block)
+│   │   ├── builder.py           # 统一模型构建 (build_model)
 │   │   └── segmentor.py         # 模型组装器 (Encoder-Decoder Wrapper)
 │   │
 │   ├── losses/                  # 损失函数 (CrossEntropy, Dice, OHEM 等)
@@ -56,10 +58,49 @@ RGBD-Segmentation/
 │       ├── metrics.py           # 评价指标计算 (mIoU, Pixel Acc)
 │       └── visualizer.py        # 预测结果上色与融合显示
 │
+├── tests/                       # 辅助检查脚本
+│   ├── analyze_label.py
+│   ├── check_data.py
+│   └── check_model.py
+│
 ├── tools/                       # [Python 入口]
 │   ├── train.py                 # 训练主入口
 │   ├── test.py                  # 测试主入口
-│   └── inference.py             # 单图推理脚本
+│   ├── inference.py             # 单图推理脚本
+│   └── benchmark.py             # 参数量/FLOPs/FPS 基准
+│
+├── outputs/                     # [实验输出] 训练后自动生成
+│   └── {experiment_name}/
+│       ├── checkpoints/         # 保存的模型权重 (.pth)
+│       ├── logs/                # Tensorboard/Wandb 日志文件
+│       └── visual_results/      # 验证集预测结果可视化
 │
 ├── requirements.txt             # Python 依赖包列表
+├── .gitignore
+├── .gitattributes
+├── Todo                         # 任务记录 (可选)
 └── README.md                    # 项目说明文档
+
+## ⚙️ 模型构建与配置
+
+关键配置项：
+- `model.backbone`: 如 `resnet50`, `dformerv2_s`, `dformerv2_b` 等
+- `model.decoder`: 如 `fcn`（可扩展）
+- `model.decoder_channels`: 解码头通道数
+- `dataset.n_classes`: 类别数
+
+示例：
+
+```bash
+# 训练
+torchrun --nproc_per_node=4 tools/train.py --config configs/nyu_v2/resnet50_baseline.yaml
+
+# 评测
+torchrun --nproc_per_node=4 tools/test.py --config configs/nyu_v2/resnet50_baseline.yaml --checkpoint outputs/exp/checkpoint_best.pth
+
+# 推理
+python tools/inference.py --config configs/nyu_v2/resnet50_baseline.yaml --checkpoint outputs/exp/checkpoint_best.pth
+
+# 基准
+python tools/benchmark.py --config configs/nyu_v2/resnet50_baseline.yaml --height 480 --width 480
+```
