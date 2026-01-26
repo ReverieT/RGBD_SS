@@ -208,7 +208,7 @@ def main():
     lr_scheduler = optim.lr_scheduler.PolynomialLR(optimizer, total_iters=cfg.epochs, power=0.9)
     
     criterion = nn.CrossEntropyLoss(ignore_index=255)
-    scaler = torch.amp.GradScaler() # 混合精度
+    scaler = torch.cuda.amp.GradScaler() # 混合精度
 
     # 6. 开始循环
     logger.info("Start training...")

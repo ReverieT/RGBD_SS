@@ -17,3 +17,4 @@ loader:
 
 # 修改保存路径
 save_dir: "outputs/nyu_resnet50_baseline"
+epochs: 100

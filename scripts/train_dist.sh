@@ -21,7 +21,7 @@ fi
 # 2. 设置环境变量
 export CUDA_VISIBLE_DEVICES=$GPUS
 # 设置主端口 (随机生成一个端口防止冲突，或者固定)
-export MASTER_PORT=${MASTER_PORT:-29500}
+export MASTER_PORT=${MASTER_PORT:-29505}
 # 将当前目录添加到 PYTHONPATH，确保能 import seg_core
 export PYTHONPATH="$(dirname $0)/..":$PYTHONPATH
 
