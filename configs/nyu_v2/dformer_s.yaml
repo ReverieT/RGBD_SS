@@ -13,12 +13,12 @@ model:
   
   # 解码头配置
   decoder: "ham"
-  decoder_channels: 256 # 中间特征维度，256 或 512 都可以
+  decoder_channels: 512 # 中间特征维度，256 或 512 都可以
 
 # 3. 覆写 Loader 配置
 loader:
   # Transformer 显存占用比 ResNet 大，如果显存不够(如<24G)，建议设为 4
-  batch_size: 4 
+  batch_size: 16 
   num_workers: 4
   pin_memory: True
 

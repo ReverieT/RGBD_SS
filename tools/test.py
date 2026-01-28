@@ -41,13 +41,32 @@ def main():
     
     # 处理 DDP 保存时可能带有的 'module.' 前缀
     state_dict = checkpoint['model'] if 'model' in checkpoint else checkpoint
+    model_dict = model.state_dict()
     new_state_dict = {}
     for k, v in state_dict.items():
-        if k.startswith('module.'):
-            new_state_dict[k[7:]] = v
+        # 基础名称转换
+        name = k[7:] if k.startswith('module.') else k
+        if 'decode_head' in name:
+            name = name.replace('decode_head.', 'head.')
+            name = name.replace('.bn.', '.norm.')
+            name = name.replace('conv_seg', 'cls_seg')
+        
+        # 过滤掉权重里多余的、但模型里没有的 bias
+        if name in model_dict:
+            new_state_dict[name] = v
         else:
+            if dist_utils.is_main_process():
+                print(f"  Discarding unexpected key: {name}")
+
+    # 【核心操作】：补全那些模型里有、但权重里没有的参数 (如 ham_in.norm)
+    for k, v in model_dict.items():
+        if k not in new_state_dict:
             new_state_dict[k] = v
-    model.load_state_dict(new_state_dict)
+            if dist_utils.is_main_process():
+                print(f"  Keeping initialized key: {k}")
+
+    # 现在 new_state_dict 的 key 和 model 完全一致了
+    model.load_state_dict(new_state_dict, strict=False)
 
     # DDP 包装 (为了支持多卡并行推理)
     model = DDP(model, device_ids=[args.gpu])
